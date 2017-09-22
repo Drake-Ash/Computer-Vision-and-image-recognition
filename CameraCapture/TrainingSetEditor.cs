@@ -8,7 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using Emgu.CV;
 using Emgu.CV.Structure;
-using Emgu.Util;        
+using Emgu.Util; 
 using Emgu.CV.CvEnum;
 using System.Data.OleDb;
 using System.IO;
@@ -31,13 +31,13 @@ namespace LiveFaceDetection
 
         OleDbConnection Conn = new OleDbConnection();
 
-        OleDbDataAdapter dbDataAdpater;
-
         DataTable TSTable = new DataTable();
+        DataTable AttdTable = new DataTable();
 
         int TotalRows = 0;
         int rowNum = 0;
         private OleDbDataAdapter dbDataAdapter;
+        private OleDbDataAdapter attdDataAdapter;
 
         Image<Gray, Byte>[] TrainingSetImages;
         String[] Labels;
@@ -93,6 +93,7 @@ namespace LiveFaceDetection
       
         private void ProcessFrame(object sender, EventArgs arg)
         {
+
             TestImage = capture.QueryFrame();
 
             CamImageBox.Image = TestImage;   
@@ -244,12 +245,16 @@ namespace LiveFaceDetection
                 imageParameter.Value = FaceAsBytes;
                 imageParameter.Size = FaceAsBytes.Length;
 
+                OleDbCommand attdinsert = new OleDbCommand("insert into AttendanceDataBase values('" + FaceName + "','A','A','A','A','A','A')", Conn);
+
                 int rowsAffected = insert.ExecuteNonQuery();
+                attdinsert.ExecuteNonQuery();
+
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 MessageBox.Show(e.Message.ToString());
-                MessageBox.Show(e.StackTrace.ToString());
+                //MessageBox.Show(e.StackTrace.ToString());
             }
             finally
             {
@@ -351,13 +356,23 @@ namespace LiveFaceDetection
 
         private void btnUpdateFace_Click(object sender, EventArgs e)
         {
+            if (Conn.State.Equals(ConnectionState.Closed))
+            {
+                Conn.Open();
+            }
             try
             {
+
                 lblFaceNo.Text = (rowNum + 1).ToString();
+
+                String prevName = (String)TSTable.Rows[rowNum]["FaceName"];
 
                 TSTable.Rows[rowNum]["FaceName"] = txtBoxNewLabel.Text;
 
                 dbDataAdapter.Update(TSTable);
+
+                OleDbCommand attdupdate = new OleDbCommand("update AttendanceDataBase set FaceName='" + txtBoxNewLabel.Text + "' where FaceName = '" + prevName + "'", Conn);
+                attdupdate.ExecuteNonQuery();
             }
             catch(Exception q)
             {
@@ -367,10 +382,18 @@ namespace LiveFaceDetection
  
         private void btnDelFace_Click(object sender, EventArgs e)
         {
+            if (Conn.State.Equals(ConnectionState.Closed))
+            {
+                Conn.Open();
+            }
             try
             {
                 if (rowNum >= 0)
                 {
+                    String Name = TSTable.Rows[rowNum]["FaceName"].ToString();
+                    OleDbCommand attddelete = new OleDbCommand("delete from AttendanceDataBase where FaceName = '" + Name.ToString() + "'", Conn);
+                    attddelete.ExecuteNonQuery();
+
                     TSTable.Rows[rowNum].Delete();
                     dbDataAdapter.Update(TSTable);
                     rowNum--;
@@ -379,6 +402,8 @@ namespace LiveFaceDetection
                         pbTSFace.Image = GetFaceFromDB();
                         txtBoxFaceName.Text = TSTable.Rows[rowNum]["FaceName"].ToString();
                         lblFaceNo.Text = (rowNum + 1).ToString();
+
+                        
                     }
                     else
                     {
@@ -402,7 +427,7 @@ namespace LiveFaceDetection
             }
             catch(Exception er)
             {
-
+                MessageBox.Show("Cannot Delete!!");
             }
         }
 
@@ -412,12 +437,15 @@ namespace LiveFaceDetection
             Conn.ConnectionString = @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=FacesDatabase.mdb";
             Conn.Open();
 
-            dbDataAdapter = new OleDbDataAdapter("Select * from TrainingSet1",Conn);
+            dbDataAdapter = new OleDbDataAdapter("Select * from TrainingSet1", Conn);
+            attdDataAdapter = new OleDbDataAdapter("Select * from AttendanceDataBase", Conn);
 
             OleDbCommandBuilder CommandBuilder = new OleDbCommandBuilder(dbDataAdapter);
+            OleDbCommandBuilder attdCommandBuilder = new OleDbCommandBuilder(attdDataAdapter);
 
             dbDataAdapter.Fill(TSTable);
-
+            attdDataAdapter.Fill(AttdTable);
+            
             if (TSTable.Rows.Count != 0)
             {
                 TotalRows = TSTable.Rows.Count;
@@ -436,6 +464,10 @@ namespace LiveFaceDetection
 
         private void RecogFaces_Click(object sender, EventArgs e)
         {
+            if (Conn.State.Equals(ConnectionState.Closed))
+            {
+                Conn.Open();
+            }
             DetectedFaceList.Text = "Detected Faces\n";
             int i = 0;
             String[] label = new String[TotalRows];
@@ -446,6 +478,24 @@ namespace LiveFaceDetection
                 TestImages[i] = TestImages[i].Resize(100, 100, INTER.CV_INTER_LINEAR);
                 label[i] = _FaceRecognition.Recognize(TestImages[i]);
                 DetectedFaceList.Text = DetectedFaceList.Text + "\n" + label[i];
+            }
+            try
+            {
+                OleDbCommand updateAttd;
+                DateTime t = DateTime.Now;
+                String Day = t.DayOfWeek.ToString();
+                for (i = 0; i < label.Length; i++)
+                {
+                    if (label[i] != null)
+                    {
+                        updateAttd = new OleDbCommand("update AttendanceDataBase set " + Day.ToString() + " = 'P' where FaceName = '" + label[i] + "'", Conn);
+                        updateAttd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch(Exception errr)
+            {
+
             }
         }
 

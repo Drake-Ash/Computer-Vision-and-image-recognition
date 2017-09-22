@@ -397,3 +397,4 @@ C:\Users\ashwi\Desktop\Leachers\Attendance\CameraCapture\obj\Debug\LiveFaceDetec
 C:\Users\ashwi\Desktop\Leachers\Attendance\CameraCapture\obj\Debug\CameraCapture.csproj.GenerateResource.Cache
 C:\Users\ashwi\Desktop\Leachers\Attendance\CameraCapture\obj\Debug\LiveFaceDetection.exe
 C:\Users\ashwi\Desktop\Leachers\Attendance\CameraCapture\obj\Debug\LiveFaceDetection.pdb
+C:\Users\ashwi\Desktop\Leachers\Attendance\CameraCapture\obj\Debug\CameraCapture.csproj.CoreCompileInputs.cache
